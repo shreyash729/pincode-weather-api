@@ -39,12 +39,29 @@ public class OlaMapsService
                     PropertyNameCaseInsensitive = true
                 });
 
-        if (olaResponse?.Predictions == null)
-        {
+        if (olaResponse?.Predictions == null ||
+            olaResponse.Predictions.Count == 0){
             return null;
         }
 
-        return olaResponse.Predictions
-            .FirstOrDefault(p => p.Types.Contains("postal_code"));
+        // 1. Prefer an exact postal-code result
+        var postalCodeResult = olaResponse.Predictions
+            .FirstOrDefault(p =>
+                p.Types.Contains("postal_code") &&
+                p.Geometry?.Location != null);
+
+        if (postalCodeResult != null)
+        {
+            return postalCodeResult;
+        }
+
+        // 2. Fallback: use the first result with valid coordinates
+        var firstValidResult = olaResponse.Predictions
+            .FirstOrDefault(p =>
+                p.Geometry?.Location != null &&
+                p.Geometry.Location.Lat != 0 &&
+                p.Geometry.Location.Lng != 0);
+
+        return firstValidResult;
     }
 }
