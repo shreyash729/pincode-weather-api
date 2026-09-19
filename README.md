@@ -14,6 +14,7 @@ The project is built with **C# and .NET 10** and is deployed to **Azure App Serv
 * 💨 Wind speed
 * ⛈️ Weather condition/description
 * 🔐 API key stored securely using configuration
+* 🚦 IP-based fixed-window rate limiting
 * ☁️ Azure App Service deployment
 * 🚀 Automatic deployment through GitHub Actions
 
@@ -88,6 +89,45 @@ GET /api/weather?pincode=205001
 ```
 
 Weather values will change depending on the current conditions.
+
+## Rate Limiting
+
+The API uses ASP.NET Core's built-in **fixed-window rate limiter** to prevent excessive requests.
+
+### Current Limit
+
+```text
+10 requests per minute per IP address
+```
+
+For example:
+
+```text
+Request 1   → 200 OK
+Request 2   → 200 OK
+...
+Request 10  → 200 OK
+Request 11  → 429 Too Many Requests
+```
+
+When the rate limit is exceeded, the API returns:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 60
+```
+
+along with a JSON response:
+
+```json
+{
+  "error": "Too many requests.",
+  "message": "You have exceeded the rate limit. Please try again in 60 seconds.",
+  "retryAfterSeconds": 60
+}
+```
+
+The rate limiter is currently implemented in memory and is intended as application-level protection for the current single-instance deployment.
 
 ## Project Structure
 
@@ -264,6 +304,8 @@ If Ola Maps cannot provide a usable location, the API returns an error instead o
 
 The API also handles the case where an exact `postal_code` result is not returned by Ola Maps by falling back to the first prediction containing valid coordinates.
 
+If the API rate limit is exceeded, the API returns HTTP `429 Too Many Requests` and includes a `Retry-After` header.
+
 ## Future Improvements
 
 Possible future improvements include:
@@ -274,7 +316,7 @@ Possible future improvements include:
 * Add automated unit and integration tests
 * Add caching for repeated PIN code requests
 * Improve weather-code descriptions
-* Add rate limiting
+* Add distributed rate limiting for multiple instances
 * Add a frontend application
 * Add custom domain support
 * Add monitoring and Application Insights
